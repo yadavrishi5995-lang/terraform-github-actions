@@ -1,64 +1,69 @@
 
 
-name: Terraform AWS Deployment
+name: Terraform AWS ECS Deployment
 
 on:
   push:
     branches:
       - main
 
+  pull_request:
+    branches:
+      - main
+
   workflow_dispatch:
 
-# GitHub OIDC permissions
+# Required permissions for GitHub OIDC
 permissions:
   id-token: write
   contents: read
 
 jobs:
   terraform:
-    name: Terraform Deployment
+    name: Terraform CI/CD
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repository
+      # 1. Checkout GitHub repository
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2. Configure AWS Credentials
+      # 2. Configure AWS credentials using complete Role ARN
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::149935825228:role/GitHubActions-ECS-Deploy
+          role-to-assume: 'arn:aws:iam::149935825228:role/GitHubActions-ECS-Deploy'
           aws-region: ap-south-1
           role-session-name: GitHubActionsSession
 
-      # 3. Verify AWS Identity
+      # 3. Verify AWS authentication
       - name: Verify AWS Identity
-        run: aws sts get-caller-identity
+        run: |
+          aws sts get-caller-identity
 
-      # 4. Setup Terraform
+      # 4. Install Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.9.8
 
-      # 5. Terraform Format
+      # 5. Check Terraform formatting
       - name: Terraform Format
         run: terraform fmt -check -recursive
 
-      # 6. Terraform Init
+      # 6. Initialize Terraform
       - name: Terraform Init
         run: terraform init
 
-      # 7. Terraform Validate
+      # 7. Validate Terraform configuration
       - name: Terraform Validate
         run: terraform validate
 
-      # 8. Terraform Plan
+      # 8. Generate Terraform plan
       - name: Terraform Plan
         run: terraform plan -out=tfplan
 
-      # 9. Terraform Apply
+      # 9. Apply Terraform only on manual execution
       - name: Terraform Apply
         if: github.event_name == 'workflow_dispatch'
         run: terraform apply -auto-approve tfplan

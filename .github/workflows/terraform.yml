@@ -1,3 +1,4 @@
+
 name: Terraform AWS Deployment
 
 on:
@@ -19,21 +20,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Read only the required OIDC claims. The JWT itself is never printed.
-      # This JavaScript action avoids the Docker build failure from the previous debugger.
-      - name: Debug GitHub OIDC Claims
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const token = await core.getIDToken('sts.amazonaws.com');
-            const payload = JSON.parse(
-              Buffer.from(token.split('.')[1], 'base64url').toString('utf8')
-            );
-
-            core.info(`repository_id=${payload.repository_id}`);
-            core.info(`repository_owner_id=${payload.repository_owner_id}`);
-            core.info(`sub=${payload.sub}`);
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -44,10 +30,19 @@ jobs:
       - name: Verify AWS Identity
         run: aws sts get-caller-identity
 
+      - name: Check S3 State Access
+        run: |
+          aws s3api head-object \
+            --bucket abc-terraform-state-2026-unique \
+            --key github-actions/terraform.tfstate
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-         terraform_version: 1.10.5
+          terraform_version: 1.10.5
+
+      - name: Show Terraform Version
+        run: terraform version
 
       - name: Terraform Format
         run: terraform fmt -check -recursive
@@ -61,7 +56,9 @@ jobs:
       - name: Terraform Plan
         run: terraform plan -out=tfplan
 
-      # Apply only when the workflow is started manually.
       - name: Terraform Apply
+        if: github.event_name == 'workflow_dispatch'
+        run: terraform apply -auto-approve tfplan
+
         if: github.event_name == 'workflow_dispatch'
         run: terraform apply -auto-approve tfplan

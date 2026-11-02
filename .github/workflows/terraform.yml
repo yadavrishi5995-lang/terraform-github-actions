@@ -30,12 +30,6 @@ jobs:
       - name: Verify AWS Identity
         run: aws sts get-caller-identity
 
-      - name: Check S3 State Access
-        run: |
-          aws s3api head-object \
-            --bucket abc-terraform-state-2026-unique \
-            --key github-actions/terraform.tfstate
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -48,7 +42,7 @@ jobs:
         run: terraform fmt -check -recursive
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -reconfigure
 
       - name: Terraform Validate
         run: terraform validate

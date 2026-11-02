@@ -1,5 +1,5 @@
 
-name: Terraform AWS ECS Deployment
+name: Terraform AWS Deployment
 
 on:
   push:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   terraform:
-    name: Terraform Deployment
+    name: Terraform CI/CD
     runs-on: ubuntu-latest
 
     steps:
@@ -22,16 +22,15 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2. Configure AWS credentials
+      # 2. Configure AWS Credentials using OIDC
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::149935825228:role/GitHubActions-ECS-Deploy
+          role-to-assume: arn:aws:iam::149935825228:role/terraform-github-actions
           aws-region: ap-south-1
           role-session-name: GitHubActionsSession
-          role-skip-session-tagging: true
 
-      # 3. Verify AWS connection
+      # 3. Verify AWS identity
       - name: Verify AWS Identity
         run: aws sts get-caller-identity
 
@@ -41,23 +40,24 @@ jobs:
         with:
           terraform_version: 1.9.8
 
-      # 5. Terraform formatting
+      # 5. Terraform Format
       - name: Terraform Format
         run: terraform fmt -check -recursive
 
-      # 6. Terraform initialization
+      # 6. Terraform Init
       - name: Terraform Init
         run: terraform init
 
-      # 7. Terraform validation
+      # 7. Terraform Validate
       - name: Terraform Validate
         run: terraform validate
 
-      # 8. Terraform plan
+      # 8. Terraform Plan
       - name: Terraform Plan
         run: terraform plan -out=tfplan
 
-      # 9. Terraform apply (manual execution only)
+      # 9. Terraform Apply
+      # Runs only when manually triggered
       - name: Terraform Apply
         if: github.event_name == 'workflow_dispatch'
         run: terraform apply -auto-approve tfplan

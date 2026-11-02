@@ -19,12 +19,20 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Temporary diagnostic step: inspect the GitHub OIDC claims.
-      # Remove this step after the AWS IAM trust policy is corrected.
+      # Read only the required OIDC claims. The JWT itself is never printed.
+      # This JavaScript action avoids the Docker build failure from the previous debugger.
       - name: Debug GitHub OIDC Claims
-        uses: github/actions-oidc-debugger@main
+        uses: actions/github-script@v7
         with:
-          audience: sts.amazonaws.com
+          script: |
+            const token = await core.getIDToken('sts.amazonaws.com');
+            const payload = JSON.parse(
+              Buffer.from(token.split('.')[1], 'base64url').toString('utf8')
+            );
+
+            core.info(`repository_id=${payload.repository_id}`);
+            core.info(`repository_owner_id=${payload.repository_owner_id}`);
+            core.info(`sub=${payload.sub}`);
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -53,7 +61,7 @@ jobs:
       - name: Terraform Plan
         run: terraform plan -out=tfplan
 
-      # Apply only on a manual workflow_dispatch run.
+      # Apply only when the workflow is started manually.
       - name: Terraform Apply
         if: github.event_name == 'workflow_dispatch'
         run: terraform apply -auto-approve tfplan

@@ -1,11 +1,9 @@
-
 name: Terraform AWS Deployment
 
 on:
   push:
     branches:
       - main
-
   workflow_dispatch:
 
 permissions:
@@ -18,11 +16,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repository
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2. Configure AWS Credentials using OIDC
+      # Temporary diagnostic step: inspect the GitHub OIDC claims.
+      # Remove this step after the AWS IAM trust policy is corrected.
+      - name: Debug GitHub OIDC Claims
+        uses: github/actions-oidc-debugger@main
+        with:
+          audience: sts.amazonaws.com
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -30,34 +33,27 @@ jobs:
           aws-region: ap-south-1
           role-session-name: GitHubActionsSession
 
-      # 3. Verify AWS identity
       - name: Verify AWS Identity
         run: aws sts get-caller-identity
 
-      # 4. Setup Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.9.8
 
-      # 5. Terraform Format
       - name: Terraform Format
         run: terraform fmt -check -recursive
 
-      # 6. Terraform Init
       - name: Terraform Init
         run: terraform init
 
-      # 7. Terraform Validate
       - name: Terraform Validate
         run: terraform validate
 
-      # 8. Terraform Plan
       - name: Terraform Plan
         run: terraform plan -out=tfplan
 
-      # 9. Terraform Apply
-      # Runs only when manually triggered
+      # Apply only on a manual workflow_dispatch run.
       - name: Terraform Apply
         if: github.event_name == 'workflow_dispatch'
         run: terraform apply -auto-approve tfplan
